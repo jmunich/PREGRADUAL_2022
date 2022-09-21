@@ -52,7 +52,8 @@ EFF_groups <- c(
 
 EFF_lab_tib <- tibble(name = names(EFF_dat),
        label = EFF_labs,
-       group = EFF_groups)
+       group = EFF_groups) %>%
+  mutate(label = gsub("\U202F", " ", label))
 
 EFF_lab_tib_print <- EFF_lab_tib %>%
   group_by(group) %>%
@@ -331,6 +332,15 @@ EFF_n2 <- qgraph::EBICglasso(EFF_dat %>%
                    n = nrow(EFF_dat %>%
                               filter(EFF_dat_group == "2.")), 
                    threshold = TRUE) 
+
+EFF_nct_plt <- abs(EFF_n1 - EFF_n2) %>% 
+  .[lower.tri(., diag = FALSE)] %>%
+  unlist() %>% tibble(x = .) %>% 
+  ggplot(aes(x=x)) + 
+  geom_density(fill = "steelblue", alpha = .5) +
+  geom_rug(length = unit(0.045, "npc")) +
+  labs(x = "Absolutní rozdíl hran", y = "Hustota")
+
 
 
 if(sum(EFF_nct$einv.pvals$`p-value` < .05) != 0){
@@ -1058,6 +1068,11 @@ ggsave("outputs/code/0_2_1_cluster_EFF_ZU/png/2_2_EFF_plt_CI_2.png",
        width = W2, 
        height = H2)
 
+ggsave("outputs/code/0_2_1_cluster_EFF_ZU/png/2_8_EFF_nct_plt.png",
+       EFF_nct_plt,
+       width = W3, 
+       height = H3)
+
 ggsave("outputs/code/0_2_1_cluster_EFF_ZU/png/3_1_plt_EFF_dendro.png",
        plt_EFF_dendro,
        width = W2, 
@@ -1158,45 +1173,84 @@ dev.off()
 
 # Save tables
 
+tab_mod <- function(x){x %>%
+    mutate_all(function(x){round(x, 3) %>%
+        as.character() %>%
+        gsub("^0\\.","\\.",.)})}
+
 write.table(file = "outputs/code/0_2_1_cluster_EFF_ZU/tab/1_EFF_lab_tib_print.txt",
             EFF_lab_tib_print,
-            fileEncoding = "UTF-8")
+            fileEncoding = "UTF-8",
+            row.names = FALSE,
+            sep = "\t",
+            na = " ")
 
 write.table(file = "outputs/code/0_2_1_cluster_EFF_ZU/tab/2_EFF_fit_m.txt",
-            EFF_fit_m,
-            fileEncoding = "UTF-8")
+            tab_mod(EFF_fit_m),
+            fileEncoding = "UTF-8",
+            row.names = FALSE,
+            sep = "\t",
+            na = " ")
 
 write.table(file = "outputs/code/0_2_1_cluster_EFF_ZU/tab/3_EFF_nct_test.txt",
-            EFF_fit_m,
-            fileEncoding = "UTF-8")
+            tab_mod(EFF_nct_test),
+            fileEncoding = "UTF-8",
+            row.names = FALSE,
+            sep = "\t",
+            na = " ")
 
 write.table(file = "outputs/code/0_2_1_cluster_EFF_ZU/tab/4_EFF_lab_tib_print_tree.txt",
             EFF_lab_tib_print_tree,
-            fileEncoding = "UTF-8")
+            fileEncoding = "UTF-8",
+            row.names = FALSE,
+            sep = "\t",
+            na = " ")
 
 write.table(file = "outputs/code/0_2_1_cluster_EFF_ZU/tab/5_EFF_tab_fit.txt",
-            EFF_tab_fit,
-            fileEncoding = "UTF-8")
+            tab_mod(EFF_tab_fit),
+            fileEncoding = "UTF-8",
+            row.names = FALSE,
+            sep = "\t",
+            na = " ")
 
 write.table(file = "outputs/code/0_2_1_cluster_EFF_ZU/tab/6_EFF_tab_rel.txt",
-            EFF_tab_rel,
-            fileEncoding = "UTF-8")
+            EFF_tab_rel %>%
+              mutate_at(-1,function(x){gsub("^0", "", as.character(round(x,3)))}),
+            fileEncoding = "UTF-8",
+            row.names = FALSE,
+            sep = "\t",
+            na = " ")
 
 write.table(file = "outputs/code/0_2_1_cluster_EFF_ZU/tab/7_EFF_tab_loads.txt",
-            EFF_tab_loads,
-            fileEncoding = "UTF-8")
+            EFF_tab_loads %>%
+              mutate_at(-1,function(x){gsub("^0", "", x)}),
+            fileEncoding = "UTF-8",
+            row.names = FALSE,
+            sep = "\t",
+            na = " ")
 
 write.table(file = "outputs/code/0_2_1_cluster_EFF_ZU/tab/8_EFF_tab_fit_BF.txt",
-            EFF_tab_fit_BF,
-            fileEncoding = "UTF-8")
+            tab_mod(EFF_tab_fit_BF),
+            fileEncoding = "UTF-8",
+            row.names = FALSE,
+            sep = "\t",
+            na = " ")
 
 write.table(file = "outputs/code/0_2_1_cluster_EFF_ZU/tab/9_EFF_tab_rel_BF.txt",
-            EFF_tab_rel_BF,
-            fileEncoding = "UTF-8")
+            EFF_tab_rel_BF %>%
+              mutate_at(-1,function(x){gsub("^0", "", as.character(round(x,3)))}),
+            fileEncoding = "UTF-8",
+            row.names = FALSE,
+            sep = "\t",
+            na = " ")
 
 write.table(file = "outputs/code/0_2_1_cluster_EFF_ZU/tab/10_EFF_tab_loads_BF.txt",
-            EFF_tab_loads_BF,
-            fileEncoding = "UTF-8")
+            EFF_tab_loads_BF %>%
+              mutate_at(-1,function(x){gsub("^0", "", x)}),
+            fileEncoding = "UTF-8",
+            row.names = FALSE,
+            sep = "\t",
+            na = " ")
 
 #### Save data
 

@@ -84,7 +84,8 @@ ATT_groups <- c(
 ATT_lab_tib <- tibble(name = names(ATT_dat_mod),
                       label = ATT_labs,
                       group = ATT_groups) %>%
-  mutate(reverse = grepl("\\(-\\)", label))
+  mutate(reverse = grepl("\\(-\\)", label),
+         label = gsub("\U202F", " ", label))
 
 
 ATT_lab_tib_print <- ATT_lab_tib %>%
@@ -394,6 +395,15 @@ ATT_n2 <- qgraph::EBICglasso(ATT_dat_mod %>%
                                cor(method = "spearman", use = "pairwise.complete.obs"), 
                              n = nrow(ATT_dat_mod %>%
                                         filter(ATT_dat_group == "2.")),gamma = 1)
+
+ATT_nct_plt <- abs(ATT_n1 - ATT_n2) %>% 
+  .[lower.tri(., diag = FALSE)] %>%
+  unlist() %>% tibble(x = .) %>% 
+  ggplot(aes(x=x)) + 
+  geom_density(fill = "steelblue", alpha = .5) +
+  geom_rug(length = unit(0.045, "npc")) +
+  labs(x = "Absolutní rozdíl hran", y = "Hustota")
+
 
 if(sum(ATT_nct$einv.pvals$`p-value` < .05) != 0){
   
@@ -836,7 +846,8 @@ ATT_tab_loads <- ATT_loads %>%
       round(3) 
     if_else(temp_1 == 0, "", as.character(temp_1))}) %>%
   mutate(Položka = rownames(ATT_loads) %>%
-           gsub("(.{2})(.{3})", "\\1[\\2]", .)) %>%
+           gsub("(TEACHINGATT)(.{5})", "\\1[\\2]", .) %>%
+           gsub("(PUPILMIND)(.{5})", "\\1[\\2]", .)) %>%
   select(Položka, everything())
 
 ATT_fac_keeps <- colnames(ATT_tab_rel)[-1][ATT_tab_rel[2,-1] > .65] %>%
@@ -1199,6 +1210,11 @@ ggsave("outputs/code/0_2_2_cluster_ATT_ZU/png/2_2_ATT_plt_CI_2.png",
        width = W2, 
        height = H2)
 
+ggsave("outputs/code/0_2_2_cluster_ATT_ZU/png/2_8_ATT_nct_plt.png",
+       ATT_nct_plt,
+       width = W3, 
+       height = H3)
+
 ggsave("outputs/code/0_2_2_cluster_ATT_ZU/png/3_1_plt_ATT_dendro.png",
        plt_ATT_dendro,
        width = W2, 
@@ -1289,45 +1305,84 @@ dev.off()
 
 # Save tables
 
+tab_mod <- function(x){x %>%
+    mutate_all(function(x){round(x, 3) %>%
+        as.character() %>%
+        gsub("^0\\.","\\.",.)})}
+
 write.table(file = "outputs/code/0_2_2_cluster_ATT_ZU/tab/1_ATT_lab_tib_print.txt",
             ATT_lab_tib_print,
-            fileEncoding = "UTF-8")
+            fileEncoding = "UTF-8", 
+            row.names = FALSE,
+            sep = "\t",
+            na = " ")
 
 write.table(file = "outputs/code/0_2_2_cluster_ATT_ZU/tab/2_ATT_fit_m.txt",
-            ATT_fit_m,
-            fileEncoding = "UTF-8")
+            tab_mod(ATT_fit_m),
+            fileEncoding = "UTF-8", 
+            row.names = FALSE,
+            sep = "\t",
+            na = " ")
 
 write.table(file = "outputs/code/0_2_2_cluster_ATT_ZU/tab/3_ATT_nct_test.txt",
-            ATT_fit_m,
-            fileEncoding = "UTF-8")
+            tab_mod(ATT_nct_test),
+            fileEncoding = "UTF-8", 
+            row.names = FALSE,
+            sep = "\t",
+            na = " ")
 
 write.table(file = "outputs/code/0_2_2_cluster_ATT_ZU/tab/4_ATT_lab_tib_print_tree.txt",
             ATT_lab_tib_print_tree,
-            fileEncoding = "UTF-8")
+            fileEncoding = "UTF-8", 
+            row.names = FALSE,
+            sep = "\t",
+            na = " ")
 
 write.table(file = "outputs/code/0_2_2_cluster_ATT_ZU/tab/5_ATT_tab_fit.txt",
-            ATT_tab_fit,
-            fileEncoding = "UTF-8")
+            tab_mod(ATT_tab_fit),
+            fileEncoding = "UTF-8", 
+            row.names = FALSE,
+            sep = "\t",
+            na = " ")
 
 write.table(file = "outputs/code/0_2_2_cluster_ATT_ZU/tab/6_ATT_tab_rel.txt",
-            ATT_tab_rel,
-            fileEncoding = "UTF-8")
+            ATT_tab_rel %>%
+              mutate_at(-1,function(x){gsub("^0", "", as.character(round(x,3)))}),
+            fileEncoding = "UTF-8", 
+            row.names = FALSE,
+            sep = "\t",
+            na = " ")
 
 write.table(file = "outputs/code/0_2_2_cluster_ATT_ZU/tab/7_ATT_tab_loads.txt",
-            ATT_tab_loads,
-            fileEncoding = "UTF-8")
+            ATT_tab_loads %>%
+              mutate_at(-1,function(x){gsub("^0", "", x)}),
+            fileEncoding = "UTF-8", 
+            row.names = FALSE,
+            sep = "\t",
+            na = " ")
 
 write.table(file = "outputs/code/0_2_2_cluster_ATT_ZU/tab/8_ATT_tab_fit_2.txt",
-            ATT_tab_fit_2,
-            fileEncoding = "UTF-8")
+            tab_mod(ATT_tab_fit_2),
+            fileEncoding = "UTF-8", 
+            row.names = FALSE,
+            sep = "\t",
+            na = " ")
 
 write.table(file = "outputs/code/0_2_2_cluster_ATT_ZU/tab/9_ATT_tab_rel_2.txt",
-            ATT_tab_rel_2,
-            fileEncoding = "UTF-8")
+            ATT_tab_rel_2 %>%
+              mutate_at(-1,function(x){gsub("^0", "", as.character(round(x,3)))}),
+            fileEncoding = "UTF-8", 
+            row.names = FALSE,
+            sep = "\t",
+            na = " ")
 
 write.table(file = "outputs/code/0_2_2_cluster_ATT_ZU/tab/10_ATT_tab_loads_2.txt",
-            ATT_tab_loads_2,
-            fileEncoding = "UTF-8")
+            ATT_tab_loads_2 %>%
+              mutate_at(-1,function(x){gsub("^0", "", x)}),
+            fileEncoding = "UTF-8", 
+            row.names = FALSE,
+            sep = "\t",
+            na = " ")
 
 
 #### Save data
