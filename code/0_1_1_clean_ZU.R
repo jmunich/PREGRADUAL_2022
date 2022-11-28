@@ -1,4 +1,10 @@
-library("tidyverse")
+source("code/0_0_1_packages.R")
+
+if (.Platform$OS.type == "windows") {
+  Sys.setlocale(category = "LC_ALL", "English_United States.1250")
+} else {
+  Sys.setlocale(category = "LC_ALL", "en_US.UTF-8")
+}
 
 data_raw <- read_csv("data/ZU_2022_07_04.csv", lazy = FALSE)
 

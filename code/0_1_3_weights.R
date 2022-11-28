@@ -1,5 +1,5 @@
-library("tidyverse")
-library("readxl")
+source("code/0_0_1_packages.R", encoding = "UTF-8")
+source("code/0_0_2_funs.R", encoding = "UTF-8")
 source("code/0_1_1_clean_ZU.R", encoding = "UTF-8")
 
 if (.Platform$OS.type == "windows") {
@@ -162,6 +162,27 @@ data_weights <- W_cnts$use %>%
   na.omit() %>%
   mutate(wgt_samp = cnt_samp/sum(cnt_samp))
 
+W_plt_0 <- data_weights %>%
+  mutate(org = IDfac) %>%
+  mutate(org = ifelse(grepl("Mate|infor", org), "Jiné", org)) %>%
+  group_by(org) %>%
+  summarise(cnt_pop = sum(cnt_pop),
+            cnt_samp = sum(cnt_samp)) %>%
+  mutate_at(-1, function(x){x/sum(x)}) %>%
+  arrange(cnt_pop) %>%
+  mutate(org = ordered(org, org)) %>%
+  select(org, starts_with("cnt")) %>%
+  `names<-`(c("Pracoviště", "SIMS", "Vzorek")) %>%
+  pivot_longer(-1) %>%
+  mutate(name = ordered(name, c("SIMS", "Vzorek"))) %>%
+  ggplot(aes(x = Pracoviště, y = value, fill = name)) +
+    geom_bar(stat = "identity", position = "dodge", color = "black", width = .8) +
+    coord_flip() +
+  labs(fill = "Data", y = "Podíl v dané sadě") +
+  theme_minimal() +
+  scale_fill_manual(values = use_cols[c(7,1)]) +
+  theme(legend.position = "bottom")
+
 W_plt_1 <- data_weights %>%
   mutate(org = paste0(IDuni, ": ", IDfac)) %>%
   arrange(cnt_pop) %>%
@@ -173,7 +194,10 @@ W_plt_1 <- data_weights %>%
   ggplot(aes(x = Pracoviště, y = value, fill = name)) +
     geom_bar(stat = "identity", position = "dodge", color = "black", width = .8) +
     coord_flip() +
-  labs(fill = "Data", y = "Podíl v dané sadě")
+  labs(fill = "Data", y = "Podíl v dané sadě") +
+  theme_minimal() +
+  scale_fill_manual(values = use_cols[c(7,1)]) +
+  theme(legend.position = "bottom")
 
 W_plt_2 <- data_weights %>%
   mutate(org = paste0(IDuni, ": ", IDfac)) %>%
@@ -192,38 +216,40 @@ W_plt_2 <- data_weights %>%
              pch = Fakulta)) +
   geom_hline(yintercept = 0, lty = 2) +
   geom_point(cex = 5, stroke = 2) +
-  coord_flip() +
-  scale_fill_gradient2() +
+  coord_flip(clip = "off") +
+  scale_fill_gradient2(low = use_cols[7], 
+                       mid = use_cols[4],
+                       high = use_cols[1], 
+                       labels = scales::percent,
+                       midpoint = mean(data_weights$wgt_pop)) +
+  scale_y_continuous(labels = scales::label_percent(suffix = " %")) +
   labs(y = "Rozdíl podílů na celku (SIMS - vzorek)") +
   scale_shape_manual(values = c(21:24)) +
-  labs(fill = "Podíl v SIMS")
+  labs(fill = "Podíl v SIMS") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
     
 ZU_weights <- data_weights %>%
   mutate(W = cnt_pop/cnt_samp,
          W_s = (W*sum(cnt_samp))/sum(cnt_pop))
 
 
-write_csv(final_weights,
+write_csv(ZU_weights,
           "outputs/code/0_1_2_weights/data/ZU_weights.csv")
 
 
-ggsave("outputs/code/0_1_2_weights/plots/1_W_plt_1.png",
+ggsave("outputs/code/0_1_3_weights/png/0_W_plt_1.png",
+       W_plt_0, 
+       height = 8,
+       width = 10)
+
+ggsave("outputs/code/0_1_3_weights/png/1_W_plt_1.png",
        W_plt_1, 
        height = 8,
        width = 10)
 
-ggsave("outputs/code/0_1_2_weights/plots/2_W_plt_2.png",
+ggsave("outputs/code/0_1_3_weights/png/2_W_plt_1.png",
        W_plt_2, 
        height = 8,
        width = 10)
-
-ggsave("outputs/code/0_1_2_weights/plots/1_W_plt_1.svg",
-       W_plt_1, 
-       height = 8,
-       width = 10)
-
-ggsave("outputs/code/0_1_2_weights/plots/2_W_plt_2.svg",
-       W_plt_2, 
-       height = 8,
-       width = 10)
-

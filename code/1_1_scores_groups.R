@@ -1,117 +1,215 @@
+source("code/0_0_funs.R", encoding = "UTF-8")
+source("code/0_1_1_clean_ZU.R", encoding = "UTF-8")
 library("tidyverse")
+
 readMSMT::set_cz()
 
-data_0 <- read_csv("outputs/code/0_2_1_cluster_EFF_ZU/dat/1_EFF_data_0.csv")
-data_EFF <- read_csv("outputs/code/0_2_1_cluster_EFF_ZU/dat/2_EFF_D_scores.csv")
-data_ATT <- read_csv("outputs/code/0_2_2_cluster_ATT_ZU/dat/2_ATT_D_scores.csv")
+EFF_outputs <- read_rds("outputs/code/0_2_1_cluster_EFF_ZU/rds/EFF_outputs.rds")
+ATT_outputs <- read_rds("outputs/code/0_2_2_cluster_ATT_ZU/rds/ATT_outputs.rds")
+EFFAU_outputs <- read_rds("outputs/code/0_2_3_cluster_EFFAU_ZU/rds/EFFAU_outputs.rds")
+ATTAU_outputs <- read_rds("outputs/code/0_2_4_cluster_ATTAU_ZU/rds/ATTAU_outputs.rds")
+
+data_EFF <- read_rds("outputs/code/0_2_1_cluster_EFF_ZU/rds/EFF_outputs.rds")$scores$sumscores_data
+data_ATT <- read_rds("outputs/code/0_2_2_cluster_ATT_ZU/rds/ATT_outputs.rds")$scores$sumscores_data
+data_EFFAU <- read_rds("outputs/code/0_2_3_cluster_EFFAU_ZU/rds/EFFAU_outputs.rds")$scores$sumscores_data
+data_ATTAU <- read_rds("outputs/code/0_2_4_cluster_ATTAU_ZU/rds/ATTAU_outputs.rds")$scores$sumscores_data
 
 qual_ped <- c("Vysokoškolské vzdělání (Mgr.) se zaměřením na učitelství pro 1. stupeň nebo 2. stupeň a/nebo střední školy")                                                                                             
-
 qual_nped <- c("Vysokoškolské vzdělání (Mgr./Ing./MgA.) jiného zaměření")
-
 qual_dps <- c("Vysokoškolské vzdělání (Mgr./Ing./MgA.) jiného zaměření + dokončené Doplňující pedagogické studium (DPS, tzv. „pedagogické minimum“)")
 
-data_use <- data_0 %>%
-  bind_cols(data_EFF) %>%
-  bind_cols(data_ATT) %>%
+EFF_rel <- EFF_outputs$fits$init$tabs$rels %>%
+  .[,.[3,] > .6] %>%
+  colnames()
+ATT_rel <- ATT_outputs$fits$init$tabs$rels %>%
+  .[,.[3,] > .6] %>%
+  colnames()
+
+data_scores <- data_use %>%
+  filter(filt_RESPs) %>%
+  bind_cols(data_EFF %>%
+              select(EFF_rel) %>%
+              `colnames<-`(paste0("EFF_", colnames(.)))) %>%
+  bind_cols(data_ATT %>%
+              select(ATT_rel) %>%
+              `colnames<-`(paste0("ATT_", colnames(.)))) %>%
   mutate(Fakulta = case_when(IDfac == "Fakulta informatiky" ~ "Jiné",
                              IDfac == "Matematicko-fyzikální fakulta" ~ "Jiné",
                              TRUE ~ IDfac),
          Kvalifikace = case_when(QUAL %in% c(qual_ped, qual_nped, qual_dps) ~ "2. Magisterské",
                                  !is.na(QUAL) ~ "1. Nemagisterské",
                                  TRUE ~ NA_character_)
+  ) %>%
+  mutate(QUAL2 = ifelse(grepl("1\\.", LEVEL) & grepl("1\\.", QUAL), 
+                        paste0(QUAL,": 1. Stupeň"),
+                        ifelse((!grepl("1\\.", LEVEL)) & grepl("1\\.", QUAL), paste0(QUAL,": 2. Stupeň a SŠ"), 
+                               QUAL))
   )
 
-data_use$TIMEEMPLOYED %>% table()
-
-data_use %>%
-  select(TIMEEMPLOYED, matches("EFF_F"), matches("ATT_F")) %>%
-  pivot_longer(-TIMEEMPLOYED) %>%
-  na.omit() %>%
-  ggplot(aes(x = TIMEEMPLOYED, y = value)) +
-  geom_boxplot(notch = TRUE) +
-  facet_wrap(~name) +
-  coord_cartesian(ylim = c(-1,1))
 
 
-data_use %>%
-  select(AGE, matches("EFF_F"), matches("ATT_F")) %>%
-  pivot_longer(-AGE) %>%
-  group_by(name) %>%
-  summarise(cor.p = cor.test(AGE, value, use = "pairwise.complete.obs")$p.value < (12*.05),
-            cor = cor.test(AGE, value, use = "pairwise.complete.obs")$estimate,
-            R2 = cor^2)
+score_vars <- data_scores %>%
+  select(starts_with("EFF_K")) %>%
+  colnames() %>%
+  c(data_scores %>%
+      select(starts_with("ATT_K")) %>%
+      colnames(),.)
+
+# 0. Jak se lisi kvalifikovani a nekvalifikovani ucitele + Kubovo deleni
+
+tab_QUAL2 <- data_scores$QUAL2 %>%
+  table(useNA = "always")
+
+fit_lm_QUAL2 <- list()
+
+data_use_QUAL2 <- data_scores %>%
+  filter(QUAL2 != "Jiné") %>%
+  filter(!grepl("maturita|Bc\\.) jin", QUAL2))
+
+data_pred_QUAL2 <- data_use_QUAL2 %>%
+  select(QUAL2, AGE) %>%
+  mutate(AGE = mean(AGE, na.rm = TRUE)) %>%
+  distinct()
+
+for(i in seq_along(score_vars)){
+  temp_fit <- lm(paste0(score_vars[i] ," ~ QUAL2 + AGE"), data = data_use_QUAL2)
   
+  temp_sum <- summary(temp_fit)
+  
+  temp_sigs <- temp_sum$coefficients[,4] %>% round(4)
+  
+  fit_lm_QUAL2[[i]] <- temp_fit %>%
+    predict.lm(newdata = data_pred_QUAL2, se.fit = TRUE ) %>%
+    .[c("fit", "se.fit")] %>%
+    as_tibble() %>%
+    bind_cols(data_pred_QUAL2) %>%
+    mutate(n = tab_QUAL2[QUAL2],
+           CIl = fit - (1.96*se.fit),
+           CIu = fit + (1.96*se.fit),
+           f = score_vars[i],
+           p = temp_sigs[paste0("QUAL2", QUAL2)])
+}
 
-plot(uu$AGE, predict(ee))
 
-uu <- data_use %>%
-  select(AGE, matches("EFF_F"), matches("ATT_F")) %>%
+plt_QUAL <- fit_lm_QUAL2 %>%
+  bind_rows() %>%
+  mutate(f = gsub("ATT", "Postoje:\n", f) %>%
+           gsub("EFF", "Sebehodnocení:\n", .) %>%
+           gsub("_K", "Komunita ", .),
+         f = ordered(f, unique(f))) %>%
+  mutate(QUAL2 = str_wrap(QUAL2, 50),
+         Signifikance = case_when(is.na(p) ~ "Referenční hodnota",
+                       p > .05 ~ "p > .05",
+                       p > .01 ~ "p < .05",
+                       p > .001 ~ "p < .01",
+                       p < .001 ~ "p < .001"
+                       ) %>%
+           ordered(c("Referenční hodnota", 
+                     "p > .05",
+                     "p < .05",
+                     "p < .01",
+                     "p < .001"))) %>%
+  ggplot(aes(x = QUAL2, y = fit, ymin = CIl, ymax = CIu, color = Signifikance)) +
+  geom_hline(yintercept = 0, lty = 2) +
+  geom_pointrange() +
+  facet_wrap(~f) +
+  coord_flip() +
+  scale_color_manual(values = c("grey1", 
+                                  "darkblue", 
+                                  "orange1", 
+                                  "orange3", 
+                                  "red4")) +
+  labs(y = "Predikovaná hodnota skóru (M = 0, SD = 1), očištěná od efektu věku\nPredikce a 95% interval spolehlivosti", 
+       x = "Kvalifikace",
+       color = "Statistická významnost\npříslušného koeficientu") +
+  theme(legend.position = "bottom")
+
+ggsave("outputs/code/1_1_scores_groups/plt_QUAL.png", plt_QUAL, height = 12, width = 12)
+ggsave("outputs/code/0_3_save/report/99_plt_QUAL.png", plt_QUAL, height = 12, width = 12)
+
+
+# 1. Jak se lisi kvalifikovani a nekvalifikovani ucitele + Kubovo deleni
+
+
+tab_UNIS <- data_scores$IDuni %>%
+  table(useNA = "always")
+
+UNIS <- tab_UNIS %>%
+  sort(decreasing = TRUE) %>%
+  names() %>%
   na.omit()
 
-ee <- lm(AGE ~ .,
-   uu)
+uni_list <- list()
 
-  ggplot(aes(x = AGE, y = value)) +
-  geom_point() +
-  geom_smooth(method = "lm") +
-  facet_wrap(~name)
+for(j in 1:5){
 
-data_use %>%
-  select(TIMEEMPLOYED, AGE) %>%
-  ggplot(aes(y = AGE, x = TIMEEMPLOYED)) +
-  geom_boxplot(notch = TRUE) +
-  coord_flip()
+  fit_lm_UNIS1 <- list()
   
-data_medians_fac <- data_use %>%
-  select(Fakulta, matches("EFF_F"), matches("ATT_F")) %>%
-  filter(Fakulta != "Jiné") %>%
-  pivot_longer(-1) %>%
-  na.omit() %>%
-  group_by(Fakulta, name) %>%
-  summarise(value = median(value)) %>%
-  ungroup()
-
-data_medians_qual <- data_use %>%
-  select(Kvalifikace, matches("EFF_F"), matches("ATT_F")) %>%
-  filter(!is.na(Kvalifikace)) %>%
-  pivot_longer(-1) %>%
-  na.omit() %>%
-  group_by(Kvalifikace, name) %>%
-  summarise(value = median(value)) %>%
-  ungroup()
-
-plt_comp_fac <- data_use %>%
-  select(Fakulta, matches("EFF_F"), matches("ATT_F")) %>%
-  filter(Fakulta != "Jiné") %>%
-  pivot_longer(-1) %>%
-  na.omit() %>%
-  ggplot(aes(x = Fakulta, fill = Fakulta, y = value)) +
-  geom_violin(alpha = .5, width = .75, bw = .2) +
-  geom_boxplot(notch = TRUE, outlier.colour = NA, alpha = .5, width = .25, fill = "white") +
-  geom_hline(data = data_medians_fac,
-             aes(yintercept = value, color = Fakulta), lty = 2) +
-  facet_wrap(~name) +
-  coord_cartesian(ylim = c(-1.25,1.25)) +
-  theme(axis.text.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        legend.position = "bottom")
-
-
-plt_comp_qual <- data_use %>%
-  select(Kvalifikace, matches("EFF_F"), matches("ATT_F")) %>%
-  pivot_longer(-1) %>%
-  na.omit() %>%
-  ggplot(aes(x = Kvalifikace, fill = Kvalifikace, y = value)) +
-  geom_violin(alpha = .5, width = .75, bw = .2) +
-  geom_boxplot(notch = TRUE, outlier.colour = NA, alpha = .5, width = .25, fill = "white") +
-  geom_hline(data = data_medians_qual,
-             aes(yintercept = value, color = Kvalifikace), lty = 2) +
-  facet_wrap(~name) +
-  coord_cartesian(ylim = c(-1.25,1.25)) +
-  theme(axis.text.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        legend.position = "bottom")
-
-
+  data_use_UNIS1 <- data_scores %>%
+    filter(IDuni %in% UNIS) %>%
+    mutate(UNIS1 = ifelse(IDuni == UNIS[j], paste0("2. ", UNIS[j]), "1. Ostatní univerzity"))
   
+  data_pred_UNIS1 <- data_use_UNIS1 %>%
+    select(UNIS1, AGE, QUAL2) %>%
+    mutate(AGE = mean(AGE, na.rm = TRUE)) %>%
+    distinct()
+  
+  for(i in seq_along(score_vars)){
+    temp_fit <- lm(paste0(score_vars[i] ," ~ UNIS1 + AGE + QUAL2"), data = data_use_UNIS1)
+    
+    temp_sum <- summary(temp_fit)
+    
+    temp_sigs <- temp_sum$coefficients[,4] %>% round(4)
+    
+    fit_lm_UNIS1[[i]] <- temp_fit %>%
+      predict.lm(newdata = data_pred_UNIS1, se.fit = TRUE ) %>%
+      .[c("fit", "se.fit")] %>%
+      as_tibble() %>%
+      bind_cols(data_pred_UNIS1) %>%
+      mutate(n = tab_UNIS[UNIS1],
+             CIl = fit - (1.96*se.fit),
+             CIu = fit + (1.96*se.fit),
+             f = score_vars[i],
+             p = temp_sigs[paste0("UNIS1", UNIS1)])
+  }
+  
+  
+  uni_list[[j]] <- fit_lm_UNIS1 %>%
+    bind_rows() %>%
+    mutate(f = gsub("ATT", "Postoje:\n", f) %>%
+             gsub("EFF", "Sebehodnocení:\n", .) %>%
+             gsub("_K", "Komunita ", .),
+           f = ordered(f, unique(f))) %>%
+    mutate(UNIS1 = str_wrap(UNIS1, 50),
+           Signifikance = case_when(is.na(p) ~ "Referenční hodnota",
+                                    p > .05 ~ "p > .05",
+                                    p > .01 ~ "p < .05",
+                                    p > .001 ~ "p < .01",
+                                    p < .001 ~ "p < .001"
+           ) %>%
+             ordered(c("Referenční hodnota", 
+                       "p > .05",
+                       "p < .05",
+                       "p < .01",
+                       "p < .001"))) %>%
+    ggplot(aes(x = UNIS1, y = fit, ymin = CIl, ymax = CIu, color = Signifikance, pch = QUAL2, group = QUAL2)) +
+    geom_hline(yintercept = 0, lty = 2) +
+    geom_pointrange(position = position_dodge(width = .5)) +
+    facet_wrap(~f) +
+    coord_flip() +
+    scale_color_manual(values = c("grey1", 
+                                  "darkblue", 
+                                  "orange1", 
+                                  "orange3", 
+                                  "red4")) +
+    labs(y = "Predikovaná hodnota skóru (M = 0, SD = 1), očištěná od efektu věku\nPredikce a 95% interval spolehlivosti", 
+         x = "Pracoviště",
+         pch = "Kvalifikace",
+         color = "Statistická významnost\npříslušného koeficientu") +
+    theme(legend.position = "bottom", legend.direction = "vertical")
+}
+
+
+
+ggsave("outputs/code/1_1_scores_groups/plt_UPOL.png", uni_list[[1]], height = 12, width = 12)
+
