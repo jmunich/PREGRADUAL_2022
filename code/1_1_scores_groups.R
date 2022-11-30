@@ -1,18 +1,23 @@
-source("code/0_0_funs.R", encoding = "UTF-8")
+source("code/0_0_2_funs.R", encoding = "UTF-8")
 source("code/0_1_1_clean_ZU.R", encoding = "UTF-8")
 library("tidyverse")
 
-readMSMT::set_cz()
+if (.Platform$OS.type == "windows") {
+  Sys.setlocale(category = "LC_ALL", "English_United States.1250")
+} else {
+  Sys.setlocale(category = "LC_ALL", "en_US.UTF-8")
+}
+
 
 EFF_outputs <- read_rds("outputs/code/0_2_1_cluster_EFF_ZU/rds/EFF_outputs.rds")
 ATT_outputs <- read_rds("outputs/code/0_2_2_cluster_ATT_ZU/rds/ATT_outputs.rds")
 EFFAU_outputs <- read_rds("outputs/code/0_2_3_cluster_EFFAU_ZU/rds/EFFAU_outputs.rds")
 ATTAU_outputs <- read_rds("outputs/code/0_2_4_cluster_ATTAU_ZU/rds/ATTAU_outputs.rds")
 
-data_EFF <- read_rds("outputs/code/0_2_1_cluster_EFF_ZU/rds/EFF_outputs.rds")$scores$sumscores_data
-data_ATT <- read_rds("outputs/code/0_2_2_cluster_ATT_ZU/rds/ATT_outputs.rds")$scores$sumscores_data
-data_EFFAU <- read_rds("outputs/code/0_2_3_cluster_EFFAU_ZU/rds/EFFAU_outputs.rds")$scores$sumscores_data
-data_ATTAU <- read_rds("outputs/code/0_2_4_cluster_ATTAU_ZU/rds/ATTAU_outputs.rds")$scores$sumscores_data
+data_EFF <- read_rds("outputs/code/0_2_1_cluster_EFF_ZU/rds/EFF_outputs.rds")$scores$data$sumscores_data
+data_ATT <- read_rds("outputs/code/0_2_2_cluster_ATT_ZU/rds/ATT_outputs.rds")$scores$data$sumscores_data
+data_EFFAU <- read_rds("outputs/code/0_2_3_cluster_EFFAU_ZU/rds/EFFAU_outputs.rds")$scores$data$sumscores_data
+data_ATTAU <- read_rds("outputs/code/0_2_4_cluster_ATTAU_ZU/rds/ATTAU_outputs.rds")$scores$data$sumscores_data
 
 qual_ped <- c("Vysokoškolské vzdělání (Mgr.) se zaměřením na učitelství pro 1. stupeň nebo 2. stupeň a/nebo střední školy")                                                                                             
 qual_nped <- c("Vysokoškolské vzdělání (Mgr./Ing./MgA.) jiného zaměření")
@@ -155,7 +160,7 @@ for(j in 1:5){
     distinct()
   
   for(i in seq_along(score_vars)){
-    temp_fit <- lm(paste0(score_vars[i] ," ~ UNIS1 + AGE + QUAL2"), data = data_use_UNIS1)
+    temp_fit <- lm(paste0(score_vars[i] ," ~ UNIS1 + QUAL2 + AGE"), data = data_use_UNIS1)
     
     temp_sum <- summary(temp_fit)
     
@@ -209,7 +214,5 @@ for(j in 1:5){
     theme(legend.position = "bottom", legend.direction = "vertical")
 }
 
-
-
 ggsave("outputs/code/1_1_scores_groups/plt_UPOL.png", uni_list[[1]], height = 12, width = 12)
-
+ggsave("outputs/code/1_1_scores_groups/plt_MUNI.png", uni_list[[2]], height = 12, width = 12)
