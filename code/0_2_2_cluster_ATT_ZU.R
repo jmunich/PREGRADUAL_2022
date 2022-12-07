@@ -496,14 +496,14 @@ ATT_outputs$fits$adapt <- fit_lav(model = ATT_par_list$cfa_mod$adapt,
                        data = ATT_dat_mod,
                        train = ATT_par_list$train)
 
-ATT_par_list$fnames$init <- lavNames(ATT_outputs$fits$init$fits$f_train, c("ov", "lv")) %>%
-  unlist(recursive = TRUE)
+ATT_par_list$fnames$init <- c(lavNames(ATT_outputs$fits$init$fits$f_train, c("ov")),
+                                lavNames(ATT_outputs$fits$init$fits$f_train, c("lv")))
 
 ATT_par_list$fnames_s$init <- lavNames(ATT_outputs$fits$init$fits$f_train, c("lv")) %>%
   unlist(recursive = TRUE)
 
-ATT_par_list$fnames$adapt <- lavNames(ATT_outputs$fits$adapt$fits$f_train, c("ov", "lv")) %>%
-  unlist(recursive = TRUE)
+ATT_par_list$fnames$adapt <- c(lavNames(ATT_outputs$fits$adapt$fits$f_train, c("ov")),
+                                 lavNames(ATT_outputs$fits$adapt$fits$f_train, c("lv")))
 
 ATT_par_list$fnames_s$adapt <- lavNames(ATT_outputs$fits$adapt$fits$f_train, c("lv")) %>%
   unlist(recursive = TRUE)

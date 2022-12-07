@@ -1,3 +1,4 @@
+source("code/0_0_0_set_dirs.R", encoding = "UTF-8")
 source("code/0_0_1_packages.R", encoding = "UTF-8")
 source("code/0_0_2_funs.R", encoding = "UTF-8")
 source("code/0_1_1_clean_ZU.R", encoding = "UTF-8")
@@ -42,6 +43,11 @@ vlab.size2 <- .5
 elabs.pos <- 8/10
 
 
+# Ad hoc saves ------------------------------------------------------------
+
+EFF_tosave$scores$plt_thresh_rescaled_2
+EFFAU_tosave$scores$plt_thresh_rescaled_2 <- EFFAU_tosave$scores$plt_thresh_rescaled
+EFFAU_tosave$scores$plt_thresh_rescaled_2$data$group <- EFF_tosave$scores$plt_thresh_rescaled_2$data$group
 
 # summary table -----------------------------------------------------------
 dat_list_raw <- list(

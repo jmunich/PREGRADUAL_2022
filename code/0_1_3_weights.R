@@ -236,7 +236,7 @@ ZU_weights <- data_weights %>%
 
 
 write_csv(ZU_weights,
-          "outputs/code/0_1_2_weights/data/ZU_weights.csv")
+          "outputs/code/0_1_3_weights/data/ZU_weights.csv")
 
 
 ggsave("outputs/code/0_1_3_weights/png/0_W_plt_1.png",

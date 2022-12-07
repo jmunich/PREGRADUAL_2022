@@ -378,14 +378,14 @@ EFF_outputs$fits$bifactor <- fit_lav(model = EFF_par_list$cfa_mod$bifactor,
                                  train = EFF_par_list$train)
 
 
-EFF_par_list$fnames$init <- lavNames(EFF_outputs$fits$init$fits$f_train, c("ov", "lv")) %>%
-  unlist(recursive = TRUE)
+EFF_par_list$fnames$init <- c(lavNames(EFF_outputs$fits$init$fits$f_train, c("ov")),
+                              lavNames(EFF_outputs$fits$init$fits$f_train, c("lv")))
 
 EFF_par_list$fnames_s$init <- lavNames(EFF_outputs$fits$init$fits$f_train, c("lv")) %>%
   unlist(recursive = TRUE)
 
-EFF_par_list$fnames$bifactor <- lavNames(EFF_outputs$fits$bifactor$fits$f_train, c("ov", "lv")) %>%
-  unlist(recursive = TRUE)
+EFF_par_list$fnames$bifactor <- c(lavNames(EFF_outputs$fits$bifactor$fits$f_train, c("ov")),
+                                  lavNames(EFF_outputs$fits$bifactor$fits$f_train, c("lv")))
 
 EFF_par_list$fnames_s$bifactor <- lavNames(EFF_outputs$fits$bifactor$fits$f_train, c("lv")) %>%
   unlist(recursive = TRUE)
